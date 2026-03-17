@@ -8,6 +8,14 @@ namespace Trino.Client.Types
     {
         private BigInteger integerPart;
         private BigInteger fractionalPart;
+
+        /// <summary>
+        /// The scale represents the number of digits to the right of the decimal point.
+        /// It is used to determine the precision of the fractional part of the BigDecimal.
+        /// </summary>
+        /// <example>
+        /// For example, if the BigDecimal is "123.00456", the scale is 5 because there are five digits to the right of the decimal point, including the leading zeros.
+        /// </example>
         private int scale;
         private int sign; // store explicit sign to preserve "-0.xxx" cases
 
@@ -33,7 +41,7 @@ namespace Trino.Client.Types
 
         public TrinoBigDecimal(BigInteger integerPart, BigInteger fractionalPart, int scale)
         {
-            sign = integerPart.Sign < 0 ? -1 : 1;
+            this.sign = integerPart.Sign < 0 ? -1 : 1;
             this.integerPart = BigInteger.Abs(integerPart);
             this.fractionalPart = fractionalPart;
             this.scale = scale;
@@ -125,6 +133,12 @@ namespace Trino.Client.Types
             }
         }
 
+        /// <summary>
+        /// The AlignScales method ensures that two BigDecimal instances have the same scale before performing arithmetic operations.
+        /// a = 1.23 (scale = 2)
+        /// b = 4.567 (scale = 3)
+        /// a's fractional part is adjusted to 230 (by multiplying by 10) to match the scale of 3.
+        /// </summary>
         private static void AlignScales(ref TrinoBigDecimal a, ref TrinoBigDecimal b)
         {
             if (a.scale > b.scale)
