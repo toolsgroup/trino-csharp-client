@@ -1,0 +1,19 @@
+name: .Net Code Test and Coverage Check for PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+  workflow_dispatch:
+
+jobs:
+
+  Run-Test:
+    if: github.event.pull_request.draft == false
+    uses: toolsgroup/tg-shared-actions/.github/workflows/shared-dotnet-code-test.yml@main
+    with:
+      ENV_TAG: dev
+      DOTNET_JSON: apps/dotnet.json
+      CODECOVERAGE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+      runner: ubuntu-latest
+    secrets: inherit
