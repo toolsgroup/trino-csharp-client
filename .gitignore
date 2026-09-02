@@ -36,6 +36,9 @@ _ReSharper*/
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
+# dotnet test code coverage output (shared-dotnet-code-test.yml --results-directory)
+coverage/
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json

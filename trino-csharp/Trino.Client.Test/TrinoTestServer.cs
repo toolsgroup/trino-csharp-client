@@ -28,7 +28,14 @@ namespace Trino.Client.Test
         public static TrinoTestServer Create(string testFile, TimeSpan waitBetweenResponses)
         {
             TrinoTestServer server = new();
-            server.StartServer(testFile, waitBetweenResponses);
+            // Resolve against the test assembly's own output directory rather than the process's
+            // current working directory: callers pass bare filenames (e.g. "trino_cancel.txt"),
+            // but the fixture files are deployed under a "scripts" subfolder next to the assembly
+            // (see the <None Update="scripts\*.txt"> items in the .csproj), and dotnet test's CWD
+            // doesn't reliably match that -- it happened to work under some test runners/IDEs and
+            // silently never ran in CI (the old CI only built, never executed tests).
+            string resolvedTestFile = Path.Combine(AppContext.BaseDirectory, "scripts", testFile);
+            server.StartServer(resolvedTestFile, waitBetweenResponses);
             return server;
         }
 
