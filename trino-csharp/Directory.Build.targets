@@ -1,0 +1,7 @@
+<Project>
+	<PropertyGroup>
+		<PackageOutputPath>$(SolutionDir)/NugetPack</PackageOutputPath>
+		<Company>ToolsGroup</Company>
+		<Authors>ToolsGroup</Authors>
+	</PropertyGroup>
+</Project>

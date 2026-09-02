@@ -1,0 +1,23 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+
+  version:
+    uses: toolsgroup/tg-shared-actions/.github/workflows/shared-semver-get.yml@main
+    with:
+      RELEASE_TYPE: USE_PR_LABEL
+      GIT_TAG: true
+    secrets: inherit
+
+  publish-nuget-packages:
+    needs: version
+    if: needs.version.outputs.VERSION_SKIP != 'true'
+    uses: toolsgroup/tg-shared-actions/.github/workflows/shared-nuget-publish-dotnet.yml@main
+    with:
+      SEMANTIC_VERSION: ${{ needs.version.outputs.VERSION }}
+      NUGET_JSON: 'apps/nuget.json'
+    secrets: inherit

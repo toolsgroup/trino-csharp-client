@@ -1,0 +1,10 @@
+{
+	"include": [
+		{
+			"SOLUTION_ID": "Trino.CSharp.Client",
+			"SOLUTION_NAME": "trino-csharp/TrinoDriver.sln",
+			"PACKAGE_FOLDER": "trino-csharp/NugetPack",
+			"DOTNET_VERSION": "10.0.x"
+		}
+	]
+}
