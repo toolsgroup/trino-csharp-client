@@ -10,7 +10,7 @@ permissions:
 jobs:
 
   version:
-    uses: toolsgroup/tg-shared-actions/.github/workflows/shared-semver-get.yml@main
+    uses: ./.github/workflows/_semver-get.yml
     with:
       RELEASE_TYPE: USE_PR_LABEL
       GIT_TAG: true
@@ -19,8 +19,30 @@ jobs:
   publish-nuget-packages:
     needs: version
     if: needs.version.outputs.VERSION_SKIP != 'true'
-    uses: toolsgroup/tg-shared-actions/.github/workflows/shared-nuget-publish-dotnet.yml@main
-    with:
-      SEMANTIC_VERSION: ${{ needs.version.outputs.VERSION }}
-      NUGET_JSON: 'apps/nuget.json'
-    secrets: inherit
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.VERSION }}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build NuGet packages
+        run: dotnet pack trino-csharp/TrinoDriver.sln --configuration Release
+
+      - name: Publish NuGet packages
+        run: |
+          # dotnet pack packs every packable project in the solution (including upstream's own
+          # Trino.Client.Auth and Trino.Client.Samples) -- only push our two ToolsGroup.Trino.*
+          # packages, not everything that happened to end up in the output folder.
+          echo "Pushing packages:"
+          ls trino-csharp/NugetPack/ToolsGroup.Trino.*.nupkg
+          dotnet nuget push trino-csharp/NugetPack/ToolsGroup.Trino.*.nupkg \
+            --source "https://nuget.pkg.github.com/toolsgroup/index.json" \
+            --api-key "${{ secrets.GIT_PASSWORD }}" \
+            --skip-duplicate
