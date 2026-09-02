@@ -3,6 +3,9 @@ name: Publish .NET Packages (Pre-Release)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
 
   version-pre-release:
