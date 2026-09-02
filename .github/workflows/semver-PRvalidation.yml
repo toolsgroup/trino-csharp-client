@@ -12,5 +12,31 @@ permissions:
 jobs:
 
   Check-Required-Labels:
-    uses: toolsgroup/tg-shared-actions/.github/workflows/shared-semver-labelcheck.yml@main
-    secrets: inherit
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+
+      - name: Check exactly one release-type label is present
+        run: |
+          json_output=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels")
+
+          major_count=$(echo "$json_output" | jq '[.[] | select(.name == "major-release")] | length')
+          minor_count=$(echo "$json_output" | jq '[.[] | select(.name == "minor-release")] | length')
+          patch_count=$(echo "$json_output" | jq '[.[] | select(.name == "patch-release")] | length')
+          skip_count=$(echo "$json_output" | jq '[.[] | select(.name == "skip-release")] | length')
+          labels_found=$(echo "$json_output" | jq -r '.[].name' | paste -sd, -)
+          total_count=$((major_count + minor_count + patch_count + skip_count))
+
+          echo "Labels found: ${labels_found:-<none>}"
+
+          if [ "$total_count" -eq 0 ]; then
+            echo "::error::No release-type label found. Add exactly one of: major-release, minor-release, patch-release, skip-release."
+            exit 1
+          elif [ "$total_count" -gt 1 ]; then
+            echo "::error::Multiple release-type labels found ($labels_found). Only one is expected."
+            exit 1
+          fi
+
+          echo "OK: exactly one release-type label present."
