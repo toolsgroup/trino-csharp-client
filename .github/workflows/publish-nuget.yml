@@ -32,8 +32,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build NuGet packages
-        run: dotnet pack trino-csharp/TrinoDriver.sln --configuration Release
+      - name: Build
+        run: dotnet build trino-csharp/TrinoDriver.sln --configuration Release
+
+      - name: Pack NuGet packages
+        # dotnet pack races Build against Pack across projects in the same solution when it builds
+        # implicitly -- build explicitly first, then pack --no-build against the finished output.
+        run: dotnet pack trino-csharp/TrinoDriver.sln --configuration Release --no-build
 
       - name: Publish NuGet packages
         run: |
