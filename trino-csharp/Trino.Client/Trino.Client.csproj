@@ -2,11 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageId>Trino.Client</PackageId>
-    <Authors>Trino</Authors>
+    <PackageId>ToolsGroup.Trino.Client</PackageId>
     <Product>Trino</Product>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>$([System.DateTime]::Now.ToString("yyyy")).$([System.DateTime]::Now.ToString("MM")).$([System.DateTime]::Now.ToString("dd")).1</Version>
+    <RepositoryUrl>https://github.com/toolsgroup/trino-csharp-client</RepositoryUrl>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <Description>Trino .NET Client</Description>
