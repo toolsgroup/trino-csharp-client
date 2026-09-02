@@ -313,7 +313,14 @@ namespace Trino.Data.ADO.Client
 
         public override bool NextResult()
         {
-            throw new NotSupportedException("Trino supports only a single result per query.");
+            // Well-behaved ADO.NET consumers (Dapper among them) call NextResult() defensively
+            // even for single-result-set queries, expecting false ("no more results") rather
+            // than an exception -- this is the standard multi-result-set probe pattern (e.g.
+            // while (reader.NextResult()) { ... }), not a request for a second result set.
+            // Trino only ever has one, so false is always the correct answer; throwing broke
+            // every Dapper QueryAsync/Query call against this client as shipped. See
+            // https://github.com/trinodb/trino-csharp-client/issues/18.
+            return false;
         }
 
         /// <summary>
