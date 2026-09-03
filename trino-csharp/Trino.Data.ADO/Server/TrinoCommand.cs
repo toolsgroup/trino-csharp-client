@@ -207,31 +207,31 @@ namespace Trino.Data.ADO.Server
 	    /// </summary>
 	    protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
+            // CommandBehavior is a [Flags] enum, and real callers routinely arrive with combinations
+            // this method doesn't recognize -- notably Dapper. Dapper's default QueryAsync/Query calls
+            // mask CommandBehavior.SingleResult out of whatever they request before it ever reaches the
+            // provider (see Dapper.SqlMapper.Settings.AllowedCommandBehaviors, statically initialized to
+            // exclude SingleResult/SingleRow), so a bare CommandBehavior.SequentialAccess -- not
+            // SequentialAccess | SingleResult -- is the actual value Dapper sends in practice. An earlier
+            // version of this fix (whitelisting Default/SingleResult/SingleRow/SchemaOnly/CloseConnection
+            // and throwing for anything else) still threw NotSupportedException for that case. Trino only
+            // ever supports one result set and has no concept of a connection to close, so every
+            // CommandBehavior combination reduces to the same query, except SchemaOnly.
             RecordExecutor queryExecutor;
 
-            if ((behavior == CommandBehavior.Default)
-                || ((behavior & CommandBehavior.SingleResult) == CommandBehavior.SingleResult))
+            if ((behavior & CommandBehavior.SchemaOnly) == CommandBehavior.SchemaOnly)
             {
-                // Single result means only run one query. Trino only supports one query.
-                queryExecutor = await RunQuery().ConfigureAwait(false);
+                queryExecutor = await RunNonQuery().ConfigureAwait(false);
             }
             else if ((behavior & CommandBehavior.SingleRow) == CommandBehavior.SingleRow)
             {
                 // Single row requires the reader to be created and the first row to be read.
                 queryExecutor = await RunQuery().ConfigureAwait(false);
             }
-            else if ((behavior & CommandBehavior.SchemaOnly) == CommandBehavior.SchemaOnly)
-            {
-                queryExecutor = await RunNonQuery().ConfigureAwait(false);
-            }
-            else if ((behavior & CommandBehavior.CloseConnection) == CommandBehavior.CloseConnection)
-            {
-                // Trino has no concept of a connection because every call is a new connection.
-                queryExecutor = await RunQuery().ConfigureAwait(false);
-            }
             else
             {
-                throw new NotSupportedException();
+                // Default / SingleResult / CloseConnection / SequentialAccess / any other combination.
+                queryExecutor = await RunQuery().ConfigureAwait(false);
             }
 
             // always wait for the schema when creating an IEnumerable
