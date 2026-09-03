@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Numerics;
 
 namespace Trino.Client.Types
@@ -96,8 +97,27 @@ namespace Trino.Client.Types
                 throw new OverflowException("The fractional part is out of range for a decimal.");
             }
 
-            // This will throw an overflow exception
-            return integerDecimal + fractionalDecimal;
+            // fractionalDecimal is always >= 0 (fractionalPart itself can't be negative, per
+            // Validate()), but integerDecimal carries the real sign -- for a negative value with a
+            // nonzero integer part (e.g. "-123.456", integerPart=-123, fractionalPart=456), adding
+            // them unconditionally silently produces the wrong number (-123 + 0.456 = -122.544
+            // instead of -123.456). Subtract instead of add when the value is negative.
+            // This will throw an overflow exception if the combined value is out of decimal's range.
+            return integerPart.Sign < 0 ? integerDecimal - fractionalDecimal : integerDecimal + fractionalDecimal;
+        }
+
+        /// <summary>
+        /// Converts to a double. TrinoBigDecimal implements neither IConvertible nor any
+        /// conversion operator, so Convert.ToDouble()/(double) casts fail; this covers the
+        /// common case of using a Trino DECIMAL/aggregation result (e.g. SUM(qty * price)) as a
+        /// plain floating-point number, at the cost of double's usual floating-point precision.
+        /// Unlike ToDecimal(), this has no ~28-significant-digit ceiling, since it goes through
+        /// ToString() rather than combining the integer and fractional parts as separate decimal
+        /// values (which mishandles the sign for a negative value with a nonzero integer part).
+        /// </summary>
+        public double ToDouble()
+        {
+            return double.Parse(ToString(), NumberStyles.Float, CultureInfo.InvariantCulture);
         }
 
         public int GetScale() => scale;
