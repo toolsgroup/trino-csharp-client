@@ -41,30 +41,14 @@ While implementing it, found and fixed a separate, silent bug in `ToDecimal()`: 
 
 ### 5. `TrinoCommand.ExecuteDbDataReaderAsync`'s fix in #1 still threw for Dapper's actual default behavior
 
-Fix #1 above (bitwise `CommandBehavior` flag checks instead of exact-equality matching) was itself
-insufficient: it whitelisted `Default`/`SingleResult`/`SingleRow`/`SchemaOnly`/`CloseConnection` and
-still threw `NotSupportedException` for anything else. Confirmed live against a real Trino endpoint
-that Dapper's plain `QueryAsync<T>(sql)` still throws that exact exception, even against the fixed
-package.
+Fix #1 above (bitwise `CommandBehavior` flag checks instead of exact-equality matching) was itself insufficient: it whitelisted `Default`/`SingleResult`/`SingleRow`/`SchemaOnly`/`CloseConnection` and still threw `NotSupportedException` for anything else. Confirmed live against a real Trino endpoint that Dapper's plain `QueryAsync<T>(sql)` still throws that exact exception, even against the fixed package.
 
-Root cause: Dapper's `SqlMapper.Settings.AllowedCommandBehaviors` is statically initialized to
-`~(CommandBehavior.SingleResult | CommandBehavior.SingleRow)` — Dapper masks `SingleResult` *out* of
-the behavior it actually sends on every call, from the first attempt, not just reactively after a
-provider rejects it. So a bare `CommandBehavior.SequentialAccess` — not
-`SequentialAccess | SingleResult` as fix #1 assumed — is what really reaches this method for
-Dapper's default query path, and #1's whitelist doesn't recognize it.
+Root cause: Dapper's `SqlMapper.Settings.AllowedCommandBehaviors` is statically initialized to `~(CommandBehavior.SingleResult | CommandBehavior.SingleRow)` — Dapper masks `SingleResult` *out* of
+the behavior it actually sends on every call, from the first attempt, not just reactively after a provider rejects it. So a bare `CommandBehavior.SequentialAccess` — not `SequentialAccess | SingleResult` as fix #1 assumed — is what really reaches this method for Dapper's default query path, and #1's whitelist doesn't recognize it.
 
-This exact scenario was already resolved once before, in the original PoC's local patch
-(`platform-snowlake-project-resources/sprints/PLUS-11/patches/0001-fix-commandbehavior-flags-in-trinocommand.patch`,
-tested and confirmed working prior to this fork existing) — that patch special-cased only
-`SchemaOnly` and `SingleRow`, treating every other combination (`Default`/`SingleResult`/
-`CloseConnection`/`SequentialAccess`/anything else) as the same "just run the query" case, since
-Trino only ever supports a single result set and has no concept of a connection to close. Fix #1
-independently re-derived a narrower whitelist instead of porting that tested patch directly, and
-reintroduced the same failure mode it was meant to close. Fixed here by reverting to the original
-patch's permissive shape — no combination of behavior flags throws anymore.
+So, instead of solving like the original Trino repository fix, we apply the approach used in the PoC's local patch (`platform-snowlake-project-resources/sprints/PLUS-11/patches/0001-fix-commandbehavior-flags-in-trinocommand.patch`, tested and confirmed working prior to this fork existing) — that patch special-cased only `SchemaOnly` and `SingleRow`, treating every other combination (`Default`/`SingleResult`/ `CloseConnection`/`SequentialAccess`/anything else) as the same "just run the query" case, since Trino only ever supports a single result set and has no concept of a connection to close.
 
-**PR:** opened from branch `PLUS-577_fix-commandbehavior-default-fallback` (see PLUS-577)
+**PR:** [#8](https://github.com/toolsgroup/trino-csharp-client/pull/8)
 
 ## Packaging & versioning
 
