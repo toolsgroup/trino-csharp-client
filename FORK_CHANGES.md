@@ -35,7 +35,7 @@ tests at all, only built, so this had gone unnoticed). Fixed by resolving via `P
 
 While implementing it, found and fixed a separate, silent bug in `ToDecimal()`: it combined the integer and fractional parts as `integerDecimal + fractionalDecimal`, which is wrong whenever the value is negative with a nonzero integer part (e.g. `"-123.456"` came back as `-122.544`, not `-123.456`, with no exception at all). Fixed to subtract instead of add when the integer part is negative; all existing overflow guards are unchanged.
 
-**Does not fix** the separate, already-known upstream issue [trinodb/trino-csharp-client#29](https://github.com/trinodb/trino-csharp-client/issues/29) (open PR [#30](https://github.com/trinodb/trino-csharp-client/pull/30)) where a value like `-0.6` loses its sign entirely at *construction* time (`BigInteger.Parse("-0")` collapses to `0`) — confirmed still reproducing; that needs a structural change to where sign is stored, not addressed here.
+This fix only covered values of -1 or below. Values strictly between -1 and 0 (e.g. `-0.6`) still lost their sign at *construction* time (`BigInteger.Parse("-0")` collapses to `0`), which is upstream issue [trinodb/trino-csharp-client#29](https://github.com/trinodb/trino-csharp-client/issues/29). Fixed separately in entry 6 below, which also replaces this entry's subtract-when-negative logic in `ToDecimal()`.
 
 **PR:** [#7](https://github.com/toolsgroup/trino-csharp-client/pull/7)
 
@@ -49,6 +49,22 @@ the behavior it actually sends on every call, from the first attempt, not just r
 So, instead of solving like the original Trino repository fix, we apply the approach used in the PoC's local patch (`platform-snowlake-project-resources/sprints/PLUS-11/patches/0001-fix-commandbehavior-flags-in-trinocommand.patch`, tested and confirmed working prior to this fork existing) — that patch special-cased only `SchemaOnly` and `SingleRow`, treating every other combination (`Default`/`SingleResult`/ `CloseConnection`/`SequentialAccess`/anything else) as the same "just run the query" case, since Trino only ever supports a single result set and has no concept of a connection to close.
 
 **PR:** [#8](https://github.com/toolsgroup/trino-csharp-client/pull/8)
+
+### 6. `TrinoBigDecimal` dropped the sign of negative values between -1 and 0
+
+`TrinoBigDecimal` stored the integer and fractional parts as two `BigInteger`s, and the sign rode on the integer part. `BigInteger` has no negative zero, so `"-0.1032"` became `integerPart = 0`, `fractionalPart = 1032`, and the sign was gone. `ToString()`, `ToDecimal()`, `ToDouble()` and `GetSign()` all returned a positive value, with no error. Found by the S&OP API, where it made aggregated projected-inventory figures wrong ([AISOP-455](https://toolsgroup-dev.atlassian.net/browse/AISOP-455)).
+
+Cherry-picked upstream PR [trinodb/trino-csharp-client#30](https://github.com/trinodb/trino-csharp-client/pull/30) (open, unmerged upstream; fixes issue [#29](https://github.com/trinodb/trino-csharp-client/issues/29)) for correct authorship. It stores the sign in its own field and keeps `integerPart` as a non-negative magnitude. On top of it, a follow-up commit of ours:
+
+- stores the sign as `bool isNegative` instead of `int sign`, so `default(TrinoBigDecimal)` is a valid positive zero (upstream's left `sign == 0`, which wasn't equal to `new("0")`);
+- normalizes negative zero (`"-0"`, `"-0.00"`), so it's equal to, hashes like, and prints as positive zero;
+- keeps `GetSign()` returning -1/0/1 with 0 only for a zero value (upstream returned 1 for zero, and the old code returned 0 for any value between -1 and 1);
+- runs `ToDecimal()`'s precision check before converting, keeping the descriptive `OverflowException` message, and applies the sign once at the end (replacing entry 4's subtract-when-negative branch);
+- parses digits with `NumberStyles.None` and the invariant culture, so stray signs (`"--1"`, `"1.-2"`), multiple dots and whitespace inside the number are rejected, and parsing no longer depends on the current culture. It also accepts a missing integer part (`"-.5"`). This addresses the two automated review comments left on #30.
+
+Side effect: `GetPrecision()` and `ToDecimal()`'s precision check called `BigInteger.Log10` on a negative integer part, which returns NaN, so the check was skipped for negative values (a 36-digit negative value went through `ToDecimal()` without the expected `OverflowException`). Storing the magnitude fixes this.
+
+**PR:** *TBD*
 
 ## Packaging & versioning
 
@@ -68,4 +84,4 @@ CI cannot call `toolsgroup/tg-shared-actions`' reusable workflows/actions — Gi
 ## Syncing with upstream
 
 If an upstream PR we've mirrored here eventually merges (e.g. #22), drop our equivalent commit on
-the next sync and take upstream's version instead, to reduce this fork's maintenance surface.
+the next sync and take upstream's version instead, to reduce this fork's maintenance surface. If upstream #30 merges, still keep our follow-up commit from entry 6 on top of it, since upstream won't have those changes.
