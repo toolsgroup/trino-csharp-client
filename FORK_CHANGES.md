@@ -64,7 +64,7 @@ Cherry-picked upstream PR [trinodb/trino-csharp-client#30](https://github.com/tr
 
 Side effect: `GetPrecision()` and `ToDecimal()`'s precision check called `BigInteger.Log10` on a negative integer part, which returns NaN, so the check was skipped for negative values (a 36-digit negative value went through `ToDecimal()` without the expected `OverflowException`). Storing the magnitude fixes this.
 
-**PR:** *TBD*
+**PR:** [#9](https://github.com/toolsgroup/trino-csharp-client/pull/9)
 
 ## Packaging & versioning
 
