@@ -2,7 +2,7 @@
 
 This is a ToolsGroup fork of [trinodb/trino-csharp-client](https://github.com/trinodb/trino-csharp-client), maintained because upstream has had no code pushed to `main` since 2025 and several real bugs sit unmerged as open PRs. This document tracks what's been fixed or changed here independently of upstream, so it's clear at a glance what to expect if/when reconciling against a future upstream sync.
 
-Each entry links the internal PR; upstream issues/PRs are cross-referenced where a fix mirrors or relates to one.
+Each entry links the internal PR; upstream issues/PRs are cross-referenced where a fix mirrors or relates to one. Bugs we've confirmed but deliberately not fixed yet are tracked in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Behavior fixes
 
